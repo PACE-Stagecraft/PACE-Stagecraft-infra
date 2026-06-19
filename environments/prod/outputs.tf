@@ -1,0 +1,42 @@
+output "cluster_name" {
+  description = "EKS cluster name"
+  value       = module.eks.cluster_name
+}
+
+output "cluster_endpoint" {
+  description = "EKS cluster endpoint"
+  value       = module.eks.cluster_endpoint
+}
+
+output "vpc_id" {
+  description = "VPC ID"
+  value       = module.vpc.vpc_id
+}
+
+output "app_secrets_arns" {
+  description = "ARNs of the per-service Secrets Manager entries (agora/dev/*)"
+  value       = module.secrets.secret_arns
+}
+
+output "sqs_queue_url" {
+  description = "SQS queue URL for webhook events"
+  value       = module.sqs.queue_url
+}
+
+output "ecr_urls" {
+  description = "ECR repository URLs"
+  value       = { for k, v in module.ecr : k => v.repository_url }
+}
+
+output "alb_controller_role_arn" {
+  description = "IAM role ARN for the ALB ingress controller"
+  value       = module.alb_controller_irsa.iam_role_arn
+}
+
+output "cluster_certificate_authority_data" {
+  value = module.eks.cluster_certificate_authority_data
+}
+
+output "external_secrets_role_arn" {
+  value = module.iam.external_secrets_role_arn
+}

@@ -1,0 +1,13 @@
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars.json
+
+# Never commit real secret values. Supply github_client_secret, alert_email,
+# argocd_repo_pat, etc. via TF_VAR_* environment variables or an untracked
+# secrets.auto.tfvars file (also covered by the wildcard below).
+*secret*.tfvars
+.env

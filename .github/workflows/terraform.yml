@@ -1,0 +1,76 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "environments/**"
+      - "modules/**"
+  push:
+    branches: [main]
+    paths:
+      - "environments/**"
+      - "modules/**"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Action (plan|apply)"
+        required: true
+        default: plan
+        type: choice
+        options: [plan, apply]
+      environment:
+        description: "Environment"
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+
+jobs:
+  plan-dev:
+    name: Plan Dev
+    if: github.event_name != 'workflow_dispatch' || inputs.environment == 'dev'
+    uses: aGora-Ops/agora-workflows/.github/workflows/terraform-plan.yml@main
+    with:
+      environment: dev
+      working_directory: environments/dev
+    secrets:
+      AWS_PLAN_ROLE_ARN: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+
+  plan-prod:
+    name: Plan Prod
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod')
+    needs: plan-dev
+    uses: aGora-Ops/agora-workflows/.github/workflows/terraform-plan.yml@main
+    with:
+      environment: prod
+      working_directory: environments/prod
+    secrets:
+      AWS_PLAN_ROLE_ARN: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+
+  apply-dev:
+    name: Apply Dev
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.environment == 'dev')
+    needs: plan-dev
+    uses: aGora-Ops/agora-workflows/.github/workflows/terraform-apply.yml@main
+    with:
+      environment: dev
+      working_directory: environments/dev
+    secrets:
+      AWS_APPLY_ROLE_ARN: ${{ secrets.AWS_APPLY_ROLE_ARN }}
+
+  apply-prod:
+    name: Apply Prod (requires approval)
+    if: |
+      github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.environment == 'prod'
+    needs: [plan-prod]
+    uses: aGora-Ops/agora-workflows/.github/workflows/terraform-apply.yml@main
+    with:
+      environment: prod   # "prod" GitHub Environment must have required reviewers
+      working_directory: environments/prod
+    secrets:
+      AWS_APPLY_ROLE_ARN: ${{ secrets.AWS_APPLY_ROLE_ARN }}

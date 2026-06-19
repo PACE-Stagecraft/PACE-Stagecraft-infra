@@ -1,0 +1,38 @@
+terraform {
+  required_version = ">= 1.8.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.50"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.31"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.14"
+    }
+  }
+
+  backend "s3" {
+    bucket         = "agora-terraform-state-353284253443"
+    key            = "prod/platform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "agora-terraform-locks"
+    encrypt        = true
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Project     = "agora"
+      Environment = "prod"
+      ManagedBy   = "terraform"
+    }
+  }
+}
