@@ -29,21 +29,24 @@ variable "domain_name" {
 }
 
 variable "github_client_id" {
-  description = "GitHub OAuth App client ID"
+  description = "GitHub OAuth App client ID — leave empty, fill in AWS Secrets Manager manually after apply"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "github_client_secret" {
-  description = "GitHub OAuth App client secret"
+  description = "GitHub OAuth App client secret — leave empty, fill in AWS Secrets Manager manually after apply"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "github_webhook_secret" {
-  description = "Shared secret for verifying GitHub webhook HMAC signatures"
+  description = "Shared secret for verifying GitHub webhook HMAC — leave empty, fill in AWS Secrets Manager manually after apply"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "frontend_url" {

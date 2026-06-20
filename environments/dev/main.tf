@@ -115,7 +115,7 @@ module "ecr" {
   source  = "terraform-aws-modules/ecr/aws"
   version = "~> 2.2"
 
-  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend"])
+  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend", "agora-mcp-aws", "agora-mcp-github"])
 
   repository_name                 = each.key
   repository_image_tag_mutability = "IMMUTABLE"
@@ -143,12 +143,13 @@ module "iam" {
   aws_region           = var.aws_region
   account_id           = data.aws_caller_identity.current.account_id
   kubernetes_namespace = "agora"
-  bedrock_model_arn    = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+  bedrock_model_arn    = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-pro-v1:0"
 }
 
 locals {
-  sonnet_arn = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
-  haiku_arn  = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0"
+  nova_pro_arn   = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-pro-v1:0"
+  nova_lite_arn  = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-lite-v1:0"
+  nova_micro_arn = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-micro-v1:0"
 }
 
 module "bedrock_agents" {
@@ -160,28 +161,28 @@ module "bedrock_agents" {
 
   agents = {
     classifier = {
-      foundation_model = "anthropic.claude-3-5-haiku-20241022-v1:0"
-      model_arn        = local.haiku_arn
+      foundation_model = "amazon.nova-micro-v1:0"
+      model_arn        = local.nova_micro_arn
       instruction      = "You are a CI/CD failure classifier. Given workflow logs and YAML, respond with exactly one category: DEPENDENCY_VERSION | AUTH_FAILURE | NETWORK_TIMEOUT | CONFIG_ERROR | TEST_FAILURE | BUILD_ERROR | LINT_ERROR | PERMISSION_ERROR | UNKNOWN. No explanation, just the category."
     }
     root_cause = {
-      foundation_model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-      model_arn        = local.sonnet_arn
+      foundation_model = "amazon.nova-pro-v1:0"
+      model_arn        = local.nova_pro_arn
       instruction      = "You are a DevOps root cause analyst. Given a GitHub Actions failure category, workflow YAML, and logs, identify the specific root cause. Always respond in JSON: {\"root_cause\": \"...\", \"severity\": \"low|medium|high|critical\"}."
     }
     yaml_fixer = {
-      foundation_model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-      model_arn        = local.sonnet_arn
+      foundation_model = "amazon.nova-pro-v1:0"
+      model_arn        = local.nova_pro_arn
       instruction      = "You are a GitHub Actions workflow YAML expert. Given a root cause and the original workflow YAML, generate the corrected workflow YAML. Return ONLY valid YAML — no markdown fences, no commentary."
     }
     security_reviewer = {
-      foundation_model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-      model_arn        = local.sonnet_arn
+      foundation_model = "amazon.nova-pro-v1:0"
+      model_arn        = local.nova_pro_arn
       instruction      = "You are a DevSecOps expert. Review a proposed GitHub Actions YAML fix for security issues: hardcoded secrets, unpinned action SHAs, overbroad permissions, dangerous shell commands. Respond in JSON: {\"risk_score\": 0-10, \"findings\": [\"...\", ...]}."
     }
     pr_writer = {
-      foundation_model = "anthropic.claude-3-5-haiku-20241022-v1:0"
-      model_arn        = local.haiku_arn
+      foundation_model = "amazon.nova-lite-v1:0"
+      model_arn        = local.nova_lite_arn
       instruction      = "You write clear GitHub pull request titles and descriptions for AI-suggested CI/CD fixes. Given root cause, failure category, and security findings, respond in JSON: {\"title\": \"fix: ...\", \"body\": \"## Root Cause\\n...\"}."
     }
   }
@@ -304,7 +305,7 @@ module "secrets" {
       REDIS_URL                = "redis://redis.agora.svc.cluster.local:6379/0"
       SQS_QUEUE_URL            = module.sqs.queue_url
       SECRET_KEY               = random_password.secret_key.result
-      USE_MULTI_AGENT          = "false"
+      USE_MULTI_AGENT          = "true"
       BEDROCK_AGENT_ID_CLASSIFIER       = module.bedrock_agents.agent_ids["classifier"]
       BEDROCK_AGENT_ID_ROOT_CAUSE       = module.bedrock_agents.agent_ids["root_cause"]
       BEDROCK_AGENT_ID_YAML_FIXER       = module.bedrock_agents.agent_ids["yaml_fixer"]
@@ -324,19 +325,31 @@ module "secrets" {
   }
 }
 
-module "alb_controller_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.39"
+resource "aws_security_group" "bedrock_vpce" {
+  name        = "${local.name}-bedrock-vpce"
+  description = "Allow HTTPS from within the VPC to Bedrock interface endpoints"
+  vpc_id      = module.vpc.vpc_id
 
-  role_name = "${local.name}-alb-controller"
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+}
 
-  attach_load_balancer_controller_policy = true
+resource "aws_vpc_endpoint" "bedrock" {
+  for_each = toset(["bedrock", "bedrock-runtime", "bedrock-agent-runtime"])
 
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
-    }
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.bedrock_vpce.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${local.name}-${each.key}-vpce"
   }
 }
 

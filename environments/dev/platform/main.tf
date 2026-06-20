@@ -76,6 +76,96 @@ resource "kubernetes_service" "redis" {
   }
 }
 
+resource "helm_release" "kgateway_crds" {
+  name             = "kgateway-crds"
+  repository       = "oci://ghcr.io/kgateway-dev/charts"
+  chart            = "kgateway-crds"
+  version          = "2.0.1"
+  namespace        = "kgateway-system"
+  create_namespace = true
+}
+
+resource "helm_release" "kgateway" {
+  name       = "kgateway"
+  repository = "oci://ghcr.io/kgateway-dev/charts"
+  chart      = "kgateway"
+  version    = "2.0.1"
+  namespace  = "kgateway-system"
+
+  depends_on = [helm_release.kgateway_crds]
+}
+
+resource "kubernetes_manifest" "gateway_class" {
+  manifest = {
+    apiVersion = "gateway.networking.k8s.io/v1"
+    kind       = "GatewayClass"
+    metadata   = { name = "kgateway" }
+    spec       = { controllerName = "kgateway.io/kgateway" }
+  }
+
+  depends_on = [helm_release.kgateway]
+}
+
+resource "kubernetes_manifest" "gateway" {
+  manifest = {
+    apiVersion = "gateway.networking.k8s.io/v1"
+    kind       = "Gateway"
+    metadata = {
+      name      = "agora-gateway"
+      namespace = "kgateway-system"
+    }
+    spec = {
+      gatewayClassName = "kgateway"
+      listeners = [
+        {
+          name     = "http"
+          protocol = "HTTP"
+          port     = 80
+        },
+        {
+          name     = "https"
+          protocol = "HTTPS"
+          port     = 443
+          tls = {
+            mode = "Terminate"
+            certificateRefs = [{
+              name      = "agora-tls"
+              namespace = "kgateway-system"
+            }]
+          }
+        }
+      ]
+    }
+  }
+
+  depends_on = [kubernetes_manifest.gateway_class]
+}
+
+# Allows HTTPRoutes in the agora namespace to reference the Gateway in kgateway-system
+resource "kubernetes_manifest" "reference_grant" {
+  manifest = {
+    apiVersion = "gateway.networking.k8s.io/v1beta1"
+    kind       = "ReferenceGrant"
+    metadata = {
+      name      = "allow-agora-routes"
+      namespace = "kgateway-system"
+    }
+    spec = {
+      from = [{
+        group     = "gateway.networking.k8s.io"
+        kind      = "HTTPRoute"
+        namespace = "agora"
+      }]
+      to = [{
+        group = "gateway.networking.k8s.io"
+        kind  = "Gateway"
+      }]
+    }
+  }
+
+  depends_on = [kubernetes_manifest.gateway]
+}
+
 resource "helm_release" "external_secrets" {
   name             = "external-secrets"
   repository       = "https://charts.external-secrets.io"
@@ -145,7 +235,7 @@ resource "kubernetes_secret" "argocd_repo_helm" {
 }
 
 resource "kubernetes_manifest" "argocd_app" {
-  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend"])
+  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend", "agora-mcp-aws", "agora-mcp-github"])
 
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"

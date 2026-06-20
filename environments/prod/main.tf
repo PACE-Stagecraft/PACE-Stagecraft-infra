@@ -116,7 +116,7 @@ module "ecr" {
   source  = "terraform-aws-modules/ecr/aws"
   version = "~> 2.2"
 
-  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend"])
+  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend", "agora-mcp-aws", "agora-mcp-github"])
 
   repository_name                 = each.key
   repository_image_tag_mutability = "IMMUTABLE"
@@ -144,7 +144,7 @@ module "iam" {
   aws_region           = var.aws_region
   account_id           = data.aws_caller_identity.current.account_id
   kubernetes_namespace = "agora"
-  bedrock_model_arn    = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+  bedrock_model_arn    = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-pro-v1:0"
 }
 
 module "ebs_csi_irsa" {
@@ -273,19 +273,32 @@ module "secrets" {
   }
 }
 
-module "alb_controller_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.39"
 
-  role_name = "${local.name}-alb-controller"
+resource "aws_security_group" "bedrock_vpce" {
+  name        = "${local.name}-bedrock-vpce"
+  description = "Allow HTTPS from within the VPC to Bedrock interface endpoints"
+  vpc_id      = module.vpc.vpc_id
 
-  attach_load_balancer_controller_policy = true
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+}
 
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
-    }
+resource "aws_vpc_endpoint" "bedrock" {
+  for_each = toset(["bedrock", "bedrock-runtime", "bedrock-agent-runtime"])
+
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.bedrock_vpce.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "${local.name}-${each.key}-vpce"
   }
 }
 

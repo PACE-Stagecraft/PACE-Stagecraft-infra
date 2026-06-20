@@ -19,4 +19,12 @@ resource "aws_secretsmanager_secret_version" "service" {
 
   secret_id     = aws_secretsmanager_secret.service[each.key].id
   secret_string = jsonencode(var.secrets[each.key])
+
+  # Terraform writes auto-generated values (DATABASE_URL, SECRET_KEY, SQS_QUEUE_URL,
+  # Bedrock agent IDs) on first apply. Manually entered values (GITHUB_CLIENT_ID,
+  # GITHUB_CLIENT_SECRET, GITHUB_WEBHOOK_SECRET, FRONTEND_URL) are filled in the
+  # AWS Secrets Manager console after first apply and must never be overwritten.
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }

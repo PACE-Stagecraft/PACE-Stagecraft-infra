@@ -38,11 +38,6 @@ output "ecr_urls" {
   value       = { for k, v in module.ecr : k => v.repository_url }
 }
 
-output "alb_controller_role_arn" {
-  description = "IAM role ARN for the ALB ingress controller"
-  value       = module.alb_controller_irsa.iam_role_arn
-}
-
 output "ebs_csi_role_arn" {
   description = "IRSA role ARN for the EBS CSI Driver"
   value       = module.ebs_csi_irsa.iam_role_arn
@@ -56,4 +51,9 @@ output "cluster_certificate_authority_data" {
 output "external_secrets_role_arn" {
   description = "IRSA role ARN for External Secrets Operator (used by platform layer)"
   value       = module.iam.external_secrets_role_arn
+}
+
+output "waf_web_acl_arn" {
+  description = "WAFv2 Web ACL ARN — set as the alb.ingress.kubernetes.io/wafv2-acl-arn annotation on each public Ingress (agora-helm) to actually protect the ALBs"
+  value       = aws_wafv2_web_acl.main.arn
 }
