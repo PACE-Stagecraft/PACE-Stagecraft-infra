@@ -75,17 +75,6 @@ resource "helm_release" "kgateway" {
   depends_on = [helm_release.kgateway_crds]
 }
 
-resource "kubernetes_manifest" "gateway_class" {
-  manifest = {
-    apiVersion = "gateway.networking.k8s.io/v1"
-    kind       = "GatewayClass"
-    metadata   = { name = "kgateway" }
-    spec       = { controllerName = "kgateway.io/kgateway" }
-  }
-
-  depends_on = [helm_release.kgateway]
-}
-
 resource "kubernetes_manifest" "gateway" {
   manifest = {
     apiVersion = "gateway.networking.k8s.io/v1"
@@ -118,7 +107,7 @@ resource "kubernetes_manifest" "gateway" {
     }
   }
 
-  depends_on = [kubernetes_manifest.gateway_class]
+  depends_on = [helm_release.kgateway]
 }
 
 resource "kubernetes_manifest" "reference_grant" {
