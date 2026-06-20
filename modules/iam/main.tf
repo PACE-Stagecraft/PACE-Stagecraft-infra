@@ -89,11 +89,20 @@ resource "aws_iam_policy" "bedrock" {
   name = "${var.cluster_name}-bedrock-invoke"
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["bedrock:InvokeModel"]
-      Resource = var.bedrock_model_arn
-    }]
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = var.bedrock_model_arn
+      },
+      {
+        # Allows assuming the cross-account Bedrock role in the company account.
+        # The role ARN is supplied at runtime via BEDROCK_CROSS_ACCOUNT_ROLE_ARN.
+        Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
+        Resource = "arn:aws:iam::*:role/*bedrock*"
+      }
+    ]
   })
 }
 

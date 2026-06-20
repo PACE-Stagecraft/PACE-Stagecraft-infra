@@ -158,47 +158,9 @@ module "iam" {
   bedrock_model_arn    = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-pro-v1:0"
 }
 
-locals {
-  nova_pro_arn   = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-pro-v1:0"
-  nova_lite_arn  = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-lite-v1:0"
-  nova_micro_arn = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-micro-v1:0"
-}
-
-module "bedrock_agents" {
-  source       = "../../modules/bedrock_agents"
-  cluster_name = local.name
-  environment  = local.env
-  aws_region   = var.aws_region
-  account_id   = data.aws_caller_identity.current.account_id
-
-  agents = {
-    classifier = {
-      foundation_model = "amazon.nova-micro-v1:0"
-      model_arn        = local.nova_micro_arn
-      instruction      = "You are a CI/CD failure classifier. Given workflow logs and YAML, respond with exactly one category: DEPENDENCY_VERSION | AUTH_FAILURE | NETWORK_TIMEOUT | CONFIG_ERROR | TEST_FAILURE | BUILD_ERROR | LINT_ERROR | PERMISSION_ERROR | UNKNOWN. No explanation, just the category."
-    }
-    root_cause = {
-      foundation_model = "amazon.nova-pro-v1:0"
-      model_arn        = local.nova_pro_arn
-      instruction      = "You are a DevOps root cause analyst. Given a GitHub Actions failure category, workflow YAML, and logs, identify the specific root cause. Always respond in JSON: {\"root_cause\": \"...\", \"severity\": \"low|medium|high|critical\"}."
-    }
-    yaml_fixer = {
-      foundation_model = "amazon.nova-pro-v1:0"
-      model_arn        = local.nova_pro_arn
-      instruction      = "You are a GitHub Actions workflow YAML expert. Given a root cause and the original workflow YAML, generate the corrected workflow YAML. Return ONLY valid YAML — no markdown fences, no commentary."
-    }
-    security_reviewer = {
-      foundation_model = "amazon.nova-pro-v1:0"
-      model_arn        = local.nova_pro_arn
-      instruction      = "You are a DevSecOps expert. Review a proposed GitHub Actions YAML fix for security issues: hardcoded secrets, unpinned action SHAs, overbroad permissions, dangerous shell commands. Respond in JSON: {\"risk_score\": 0-10, \"findings\": [\"...\", ...]}."
-    }
-    pr_writer = {
-      foundation_model = "amazon.nova-lite-v1:0"
-      model_arn        = local.nova_lite_arn
-      instruction      = "You write clear GitHub pull request titles and descriptions for AI-suggested CI/CD fixes. Given root cause, failure category, and security findings, respond in JSON: {\"title\": \"fix: ...\", \"body\": \"## Root Cause\\n...\"}."
-    }
-  }
-}
+# Bedrock agents live in the company AWS account — not created here.
+# The worker assumes BEDROCK_CROSS_ACCOUNT_ROLE_ARN to call them cross-account.
+# Agent IDs are stored manually in agora/dev/worker Secrets Manager.
 
 module "ebs_csi_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
@@ -313,21 +275,24 @@ module "secrets" {
       SQS_QUEUE_URL         = module.sqs.queue_url
     }
     worker = {
-      DATABASE_URL             = "postgresql://agora:${random_password.db_password.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/agora"
-      REDIS_URL                = "redis://redis.agora.svc.cluster.local:6379/0"
-      SQS_QUEUE_URL            = module.sqs.queue_url
-      SECRET_KEY               = random_password.secret_key.result
-      USE_MULTI_AGENT          = "true"
-      BEDROCK_AGENT_ID_CLASSIFIER       = module.bedrock_agents.agent_ids["classifier"]
-      BEDROCK_AGENT_ID_ROOT_CAUSE       = module.bedrock_agents.agent_ids["root_cause"]
-      BEDROCK_AGENT_ID_YAML_FIXER       = module.bedrock_agents.agent_ids["yaml_fixer"]
-      BEDROCK_AGENT_ID_SECURITY_REVIEWER = module.bedrock_agents.agent_ids["security_reviewer"]
-      BEDROCK_AGENT_ID_PR_WRITER        = module.bedrock_agents.agent_ids["pr_writer"]
-      BEDROCK_AGENT_ALIAS_ID_CLASSIFIER        = module.bedrock_agents.agent_alias_ids["classifier"]
-      BEDROCK_AGENT_ALIAS_ID_ROOT_CAUSE        = module.bedrock_agents.agent_alias_ids["root_cause"]
-      BEDROCK_AGENT_ALIAS_ID_YAML_FIXER        = module.bedrock_agents.agent_alias_ids["yaml_fixer"]
-      BEDROCK_AGENT_ALIAS_ID_SECURITY_REVIEWER = module.bedrock_agents.agent_alias_ids["security_reviewer"]
-      BEDROCK_AGENT_ALIAS_ID_PR_WRITER         = module.bedrock_agents.agent_alias_ids["pr_writer"]
+      DATABASE_URL  = "postgresql://agora:${random_password.db_password.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/agora"
+      REDIS_URL     = "redis://redis.agora.svc.cluster.local:6379/0"
+      SQS_QUEUE_URL = module.sqs.queue_url
+      SECRET_KEY    = random_password.secret_key.result
+      USE_MULTI_AGENT = "true"
+      # Cross-account Bedrock role (company account) — fill after creating the IAM role
+      BEDROCK_CROSS_ACCOUNT_ROLE_ARN = ""
+      # Agent IDs from company account Bedrock — fill manually after first deploy
+      BEDROCK_AGENT_ID_CLASSIFIER        = ""
+      BEDROCK_AGENT_ID_ROOT_CAUSE        = ""
+      BEDROCK_AGENT_ID_YAML_FIXER        = ""
+      BEDROCK_AGENT_ID_SECURITY_REVIEWER = ""
+      BEDROCK_AGENT_ID_PR_WRITER         = ""
+      BEDROCK_AGENT_ALIAS_ID_CLASSIFIER        = ""
+      BEDROCK_AGENT_ALIAS_ID_ROOT_CAUSE        = ""
+      BEDROCK_AGENT_ALIAS_ID_YAML_FIXER        = ""
+      BEDROCK_AGENT_ALIAS_ID_SECURITY_REVIEWER = ""
+      BEDROCK_AGENT_ALIAS_ID_PR_WRITER         = ""
     }
     frontend = {
       NEXTAUTH_SECRET       = random_password.secret_key.result
@@ -337,33 +302,9 @@ module "secrets" {
   }
 }
 
-resource "aws_security_group" "bedrock_vpce" {
-  name        = "${local.name}-bedrock-vpce"
-  description = "Allow HTTPS from within the VPC to Bedrock interface endpoints"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-}
-
-resource "aws_vpc_endpoint" "bedrock" {
-  for_each = toset(["bedrock", "bedrock-runtime", "bedrock-agent-runtime"])
-
-  vpc_id              = module.vpc.vpc_id
-  service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = module.vpc.private_subnets
-  security_group_ids  = [aws_security_group.bedrock_vpce.id]
-  private_dns_enabled = true
-
-  tags = {
-    Name = "${local.name}-${each.key}-vpce"
-  }
-}
+# Bedrock VPC endpoints removed — worker calls Bedrock cross-account via
+# sts:AssumeRole into the company account, so same-account VPC endpoints
+# don't apply. Cross-account traffic routes over the public Bedrock endpoint.
 
 module "acm" {
   source  = "terraform-aws-modules/acm/aws"
