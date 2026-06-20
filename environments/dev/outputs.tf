@@ -18,16 +18,6 @@ output "app_secrets_arns" {
   value       = module.secrets.secret_arns
 }
 
-output "bedrock_agent_ids" {
-  description = "Map of agent_key => Bedrock Agent ID"
-  value       = module.bedrock_agents.agent_ids
-}
-
-output "bedrock_agent_alias_ids" {
-  description = "Map of agent_key => Bedrock Agent Alias ID"
-  value       = module.bedrock_agents.agent_alias_ids
-}
-
 output "sqs_queue_url" {
   description = "SQS queue URL for webhook events"
   value       = module.sqs.queue_url
