@@ -13,8 +13,22 @@ module "api_role" {
   }
 
   role_policy_arns = {
-    bedrock = aws_iam_policy.bedrock.arn
+    bedrock     = aws_iam_policy.bedrock.arn
+    secrets     = aws_iam_policy.secrets_read.arn
+    sqs_publish = aws_iam_policy.api_sqs_publish.arn
   }
+}
+
+resource "aws_iam_policy" "api_sqs_publish" {
+  name = "${var.cluster_name}-api-sqs-publish"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
+      Resource = "arn:aws:sqs:${var.aws_region}:${var.account_id}:agora-*"
+    }]
+  })
 }
 
 module "webhook_role" {
