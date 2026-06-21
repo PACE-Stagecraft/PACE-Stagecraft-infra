@@ -76,6 +76,12 @@ resource "aws_bedrockagent_agent_action_group" "github_tools" {
   agent_id          = aws_bedrockagent_agent.this[each.key].agent_id
   agent_version     = "DRAFT"
 
+  # root_cause also gets aws_diagnostics below — let that one trigger the
+  # PrepareAgent call instead. Two action groups on the same agent calling
+  # PrepareAgent in parallel race and 400 with "Agent in Preparing state".
+  # yaml_fixer has only this one action group, so it still prepares itself.
+  prepare_agent = each.key == "root_cause" ? false : true
+
   action_group_executor {
     custom_control = "RETURN_CONTROL"
   }
@@ -145,6 +151,11 @@ resource "aws_bedrockagent_agent_action_group" "aws_diagnostics" {
   action_group_name = "aws-diagnostics"
   agent_id          = aws_bedrockagent_agent.this[each.key].agent_id
   agent_version     = "DRAFT"
+
+  # Wait for github_tools (also on root_cause) to finish first — see the
+  # comment on that resource. This one keeps prepare_agent = true (default)
+  # so the agent ends up prepared after both action groups exist.
+  depends_on = [aws_bedrockagent_agent_action_group.github_tools]
 
   action_group_executor {
     custom_control = "RETURN_CONTROL"
