@@ -23,11 +23,9 @@ module "bedrock_agents" {
       model_arn        = local.nova_pro_arn
       instruction      = <<-EOT
         You analyse GitHub Actions failures to find the specific root cause.
-        Use the github-tools action group (read-only: get_workflow_yaml, get_run_logs) and the
-        aws-diagnostics action group (read-only: CloudWatch logs, SQS queue depth, ECR image
-        metadata) when the failure looks infrastructure-related. You never write to GitHub or
-        AWS — only read. Respond with a JSON object:
-        {"root_cause": "...", "severity": "low|medium|high|critical"}.
+        Use the github-tools action group (read-only: get_workflow_yaml, get_run_logs) to pull
+        more context when you need it. You never write to GitHub — only read. Respond with a
+        JSON object: {"root_cause": "...", "severity": "low|medium|high|critical"}.
       EOT
     }
     yaml_fixer = {

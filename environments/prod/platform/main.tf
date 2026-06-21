@@ -203,7 +203,7 @@ resource "kubernetes_secret" "argocd_repo_helm" {
 }
 
 resource "kubernetes_manifest" "argocd_app" {
-  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend", "agora-mcp-aws", "agora-mcp-github"])
+  for_each = toset(["agora-api", "agora-webhook", "agora-worker", "agora-frontend", "agora-mcp-github"])
 
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"

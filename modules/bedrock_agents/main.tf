@@ -55,7 +55,6 @@ resource "aws_bedrockagent_agent_alias" "this" {
 
   depends_on = [
     aws_bedrockagent_agent_action_group.github_tools,
-    aws_bedrockagent_agent_action_group.aws_diagnostics,
   ]
 }
 
@@ -75,12 +74,6 @@ resource "aws_bedrockagent_agent_action_group" "github_tools" {
   action_group_name = "github-tools"
   agent_id          = aws_bedrockagent_agent.this[each.key].agent_id
   agent_version     = "DRAFT"
-
-  # root_cause also gets aws_diagnostics below — let that one trigger the
-  # PrepareAgent call instead. Two action groups on the same agent calling
-  # PrepareAgent in parallel race and 400 with "Agent in Preparing state".
-  # yaml_fixer has only this one action group, so it still prepares itself.
-  prepare_agent = each.key == "root_cause" ? false : true
 
   action_group_executor {
     custom_control = "RETURN_CONTROL"
@@ -140,79 +133,6 @@ resource "aws_bedrockagent_agent_action_group" "github_tools" {
         }
       }
 
-    }
-  }
-}
-
-# Return-of-Control action group: agora-mcp-aws read-only diagnostics.
-resource "aws_bedrockagent_agent_action_group" "aws_diagnostics" {
-  for_each = toset([for k in ["root_cause"] : k if contains(keys(var.agents), k)])
-
-  action_group_name = "aws-diagnostics"
-  agent_id          = aws_bedrockagent_agent.this[each.key].agent_id
-  agent_version     = "DRAFT"
-
-  # Wait for github_tools (also on root_cause) to finish first — see the
-  # comment on that resource. This one keeps prepare_agent = true (default)
-  # so the agent ends up prepared after both action groups exist.
-  depends_on = [aws_bedrockagent_agent_action_group.github_tools]
-
-  action_group_executor {
-    custom_control = "RETURN_CONTROL"
-  }
-
-  function_schema {
-    member_functions {
-      functions {
-        name        = "get_cloudwatch_logs"
-        description = "Fetch the most recent log events from a CloudWatch Logs stream (read-only)."
-        parameters {
-          map_block_key = "log_group"
-          type          = "string"
-          description   = "CloudWatch log group, must start with /agora/ or /aws/containerinsights/"
-          required      = true
-        }
-        parameters {
-          map_block_key = "log_stream"
-          type          = "string"
-          description   = "CloudWatch log stream name"
-          required      = true
-        }
-        parameters {
-          map_block_key = "limit"
-          type          = "integer"
-          description   = "Maximum number of events to return (max 500)"
-          required      = false
-        }
-      }
-
-      functions {
-        name        = "get_sqs_queue_depth"
-        description = "Return approximate message counts for an SQS queue (read-only)."
-        parameters {
-          map_block_key = "queue_url"
-          type          = "string"
-          description   = "SQS queue URL, must contain 'agora'"
-          required      = true
-        }
-      }
-
-      functions {
-        name        = "describe_ecr_image"
-        description = "Return metadata for an ECR image (read-only)."
-        parameters {
-          map_block_key = "repository_name"
-          type          = "string"
-          description   = "ECR repository name, must start with 'agora-'"
-          required      = true
-        }
-        parameters {
-          map_block_key = "image_tag"
-          type          = "string"
-          description   = "Image tag to describe"
-          required      = true
-        }
-      }
     }
   }
 }
