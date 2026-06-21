@@ -10,7 +10,7 @@ terraform {
 
   backend "s3" {
     bucket         = "agora-tfstate-591316257673"
-    key            = "company-bedrock/terraform.tfstate"
+    key            = "bedrock/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "agora-tf-locks"
     encrypt        = true

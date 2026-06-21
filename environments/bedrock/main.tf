@@ -5,7 +5,7 @@ locals {
 }
 
 module "bedrock_agents" {
-  source = "../modules/bedrock_agents"
+  source = "../../modules/bedrock_agents"
 
   cluster_name = var.cluster_name
   environment  = var.environment
