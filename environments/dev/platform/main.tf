@@ -226,6 +226,31 @@ resource "helm_release" "argocd" {
   namespace        = "argocd"
   create_namespace = true
   version          = "7.6.12"
+
+  set {
+    name  = "server.service.type"
+    value = "LoadBalancer"
+  }
+
+  set {
+    name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
+    value = "nlb"
+  }
+
+  set {
+    name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
+    value = "internet-facing"
+  }
+
+  set {
+    name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-nlb-target-type"
+    value = "instance"
+  }
+
+  set {
+    name  = "server.service.externalTrafficPolicy"
+    value = "Local"
+  }
 }
 
 resource "kubernetes_secret" "argocd_repo_helm" {
