@@ -34,7 +34,20 @@ module "eks" {
   cluster_addons = {
     coredns    = { most_recent = true }
     kube-proxy = { most_recent = true }
-    vpc-cni    = { most_recent = true }
+    # enableNetworkPolicy is required for the NetworkPolicy objects already
+    # deployed (agora-helm's charts/*/templates/networkpolicy.yaml) to
+    # actually be enforced. Confirmed missing on the live cluster
+    # (2026-06-23): `kubectl get daemonset aws-node -n kube-system` showed
+    # the addon's network-policy-agent container running, but started with
+    # --enable-network-policy=false — every NetworkPolicy in this project
+    # has been advisory-only, not restricting any real traffic, until this
+    # is applied.
+    vpc-cni = {
+      most_recent = true
+      configuration_values = jsonencode({
+        enableNetworkPolicy = "true"
+      })
+    }
   }
 
   cluster_enabled_log_types              = ["api", "audit", "authenticator", "controllerManager", "scheduler"]

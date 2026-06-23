@@ -60,6 +60,7 @@ module "worker_role" {
 
   role_policy_arns = {
     bedrock = aws_iam_policy.bedrock.arn
+    ses     = aws_iam_policy.ses_send.arn
   }
 }
 
@@ -117,6 +118,23 @@ resource "aws_iam_policy" "bedrock" {
         Resource = "arn:aws:iam::*:role/*bedrock*"
       }
     ]
+  })
+}
+
+resource "aws_iam_policy" "ses_send" {
+  name = "${var.cluster_name}-ses-send"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      # "AI suggested a fix" notification email — SES doesn't support
+      # resource-level ARN scoping to a single sender identity for SendEmail
+      # (the verified-identity check happens at send time, not via this
+      # policy), so this grants the action account-wide rather than to a
+      # specific From address.
+      Effect   = "Allow"
+      Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+      Resource = "*"
+    }]
   })
 }
 

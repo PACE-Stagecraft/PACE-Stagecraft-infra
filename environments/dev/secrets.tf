@@ -52,6 +52,14 @@ module "secrets" {
       SECRET_KEY       = random_password.secret_key.result
       USE_MULTI_AGENT  = "true"
       INTERNAL_API_KEY = random_password.internal_api_key.result
+      FRONTEND_URL     = var.frontend_url
+      # "AI suggested a fix" email notification. Off by default — the SES
+      # account is in Sandbox mode and no sender identity is verified yet
+      # (checked 2026-06-23: domain verification shows TemporaryFailure).
+      # Flip to "true" and fill SES_FROM_EMAIL manually once a real sender
+      # identity is verified and SES production access is granted.
+      SES_ENABLED    = "false"
+      SES_FROM_EMAIL = ""
       # Fill these manually in AWS Secrets Manager after first apply.
       # They are permanent (survive Bedrock account cleanup) so only need setting once.
       BEDROCK_CROSS_ACCOUNT_ROLE_ARN           = ""

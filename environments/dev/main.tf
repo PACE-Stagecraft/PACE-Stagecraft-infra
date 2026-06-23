@@ -14,6 +14,7 @@
 #   cdn.tf         CloudFront + WAFv2 Web ACL (CLOUDFRONT scope), optional
 #   monitoring.tf  CloudWatch alarms + dashboard
 #   cloudtrail.tf  Multi-region CloudTrail + S3 bucket + CloudWatch Logs
+#   config.tf      AWS Config recorder + S3 bucket + 4 managed rules
 #
 # Bedrock agents are NOT created here — they live in the Bedrock AWS account.
 # The worker assumes BEDROCK_CROSS_ACCOUNT_ROLE_ARN to call them cross-account;
