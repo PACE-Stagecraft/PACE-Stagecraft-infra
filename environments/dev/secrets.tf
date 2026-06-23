@@ -9,10 +9,20 @@ resource "random_password" "secret_key" {
   special = false
 }
 
+# Shared secret for service-to-service calls into agora-api's /internal/*
+# routes (currently: agora-mcp-github's search_remediations tool, used by
+# agora-worker's Investigator Agent). Both api and mcp-github read the same
+# value; rotating it means re-applying Terraform, which writes a new value
+# to both secrets at once so they never drift out of sync.
+resource "random_password" "internal_api_key" {
+  length  = 48
+  special = false
+}
+
 module "secrets" {
   source        = "../../modules/secrets"
   environment   = local.env
-  service_names = ["api", "webhook", "worker", "frontend"]
+  service_names = ["api", "webhook", "worker", "frontend", "mcp-github"]
 
   secrets = {
     api = {
@@ -25,6 +35,8 @@ module "secrets" {
       FRONTEND_URL          = var.frontend_url
       SQS_QUEUE_URL         = module.sqs.queue_url
       SECRET_KEY            = random_password.secret_key.result
+      INTERNAL_API_KEY      = random_password.internal_api_key.result
+      WORKER_INTERNAL_URL   = "http://agora-worker-agora-worker.agora.svc.cluster.local:8080"
       # Pipeline Chat (Feature 3) — assume Bedrock-account Bedrock role.
       # Fill manually in AWS Secrets Manager after first apply.
       BEDROCK_CROSS_ACCOUNT_ROLE_ARN = ""
@@ -34,11 +46,12 @@ module "secrets" {
       SQS_QUEUE_URL         = module.sqs.queue_url
     }
     worker = {
-      DATABASE_URL    = "postgresql://agora:${random_password.db_password.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/agora"
-      REDIS_URL       = "redis://redis.agora.svc.cluster.local:6379/0"
-      SQS_QUEUE_URL   = module.sqs.queue_url
-      SECRET_KEY      = random_password.secret_key.result
-      USE_MULTI_AGENT = "true"
+      DATABASE_URL     = "postgresql://agora:${random_password.db_password.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/agora"
+      REDIS_URL        = "redis://redis.agora.svc.cluster.local:6379/0"
+      SQS_QUEUE_URL    = module.sqs.queue_url
+      SECRET_KEY       = random_password.secret_key.result
+      USE_MULTI_AGENT  = "true"
+      INTERNAL_API_KEY = random_password.internal_api_key.result
       # Fill these manually in AWS Secrets Manager after first apply.
       # They are permanent (survive Bedrock account cleanup) so only need setting once.
       BEDROCK_CROSS_ACCOUNT_ROLE_ARN           = ""
@@ -57,6 +70,17 @@ module "secrets" {
       NEXTAUTH_SECRET      = random_password.secret_key.result
       GITHUB_CLIENT_ID     = var.github_client_id
       GITHUB_CLIENT_SECRET = var.github_client_secret
+    }
+    "mcp-github" = {
+      INTERNAL_API_KEY = random_password.internal_api_key.result
+      AGORA_API_URL    = "http://agora-api-agora-api.agora.svc.cluster.local:8000"
+      # Fill manually after first apply if minting GitHub App installation
+      # tokens server-side is needed; today's only wired client path passes
+      # github_token through from the caller (OAuth), so these can stay
+      # empty.
+      GITHUB_APP_ID          = ""
+      GITHUB_APP_PRIVATE_KEY = ""
+      ALLOWED_ORG            = ""
     }
   }
 }
