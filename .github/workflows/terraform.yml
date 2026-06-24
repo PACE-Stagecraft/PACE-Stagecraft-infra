@@ -87,5 +87,6 @@ jobs:
     with:
       environment: prod   # "prod" GitHub Environment must have required reviewers
       working_directory: environments/prod
+      alert_email: ${{ vars.ALERT_EMAIL }}
     secrets:
       AWS_APPLY_ROLE_ARN: ${{ secrets.AWS_APPLY_ROLE_ARN }}
