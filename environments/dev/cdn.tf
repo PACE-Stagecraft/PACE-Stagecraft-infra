@@ -19,6 +19,37 @@ resource "aws_wafv2_web_acl" "cloudfront" {
     allow {}
   }
 
+  # GitHub-Hookshot POSTs to /webhooks/github must bypass the common rule set,
+  # which blocks them (SizeRestrictions_BODY or NoUserAgent_HEADER).
+  rule {
+    name     = "AllowGitHubWebhooks"
+    priority = 0
+
+    action {
+      allow {}
+    }
+
+    statement {
+      byte_match_statement {
+        search_string         = "/webhooks/github"
+        field_to_match {
+          uri_path {}
+        }
+        text_transformations {
+          priority = 0
+          type     = "NONE"
+        }
+        positional_constraint = "STARTS_WITH"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${local.name}-allow-github-webhooks"
+      sampled_requests_enabled   = true
+    }
+  }
+
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 1
