@@ -111,6 +111,18 @@ resource "aws_iam_policy" "bedrock" {
         Resource = var.bedrock_model_arn
       },
       {
+        # Knowledge Base retrieve + sync (worker ingests docs, API retrieves).
+        Effect   = "Allow"
+        Action   = ["bedrock:Retrieve", "bedrock:RetrieveAndGenerate"]
+        Resource = "arn:aws:bedrock:${var.aws_region}:${var.account_id}:knowledge-base/*"
+      },
+      {
+        # Worker syncs remediation docs to the KB S3 data source.
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:DeleteObject", "s3:GetObject"]
+        Resource = "arn:aws:s3:::*-kb-data-${var.account_id}/*"
+      },
+      {
         # Allows assuming the cross-account Bedrock role in the Bedrock account.
         # The role ARN is supplied at runtime via BEDROCK_CROSS_ACCOUNT_ROLE_ARN.
         Effect   = "Allow"

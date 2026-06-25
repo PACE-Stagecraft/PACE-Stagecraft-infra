@@ -27,7 +27,7 @@ module "secrets" {
   secrets = {
     api = {
       DATABASE_URL          = "postgresql+asyncpg://agora:${random_password.db_password.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/agora"
-      REDIS_URL             = "redis://redis.agora.svc.cluster.local:6379/0"
+      REDIS_URL             = "rediss://:${random_password.redis_auth.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
       GITHUB_CLIENT_ID      = var.github_client_id
       GITHUB_CLIENT_SECRET  = var.github_client_secret
       GITHUB_WEBHOOK_SECRET = var.github_webhook_secret
@@ -40,6 +40,9 @@ module "secrets" {
       # Pipeline Chat (Feature 3) — assume Bedrock-account Bedrock role.
       # Fill manually in AWS Secrets Manager after first apply.
       BEDROCK_CROSS_ACCOUNT_ROLE_ARN = ""
+      BEDROCK_GUARDRAIL_ID           = aws_bedrock_guardrail.main.guardrail_id
+      BEDROCK_GUARDRAIL_VERSION      = aws_bedrock_guardrail_version.main.version
+      BEDROCK_KB_ID                  = aws_bedrockagent_knowledge_base.remediations.id
     }
     webhook = {
       GITHUB_WEBHOOK_SECRET = var.github_webhook_secret
@@ -47,7 +50,7 @@ module "secrets" {
     }
     worker = {
       DATABASE_URL     = "postgresql://agora:${random_password.db_password.result}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/agora"
-      REDIS_URL        = "redis://redis.agora.svc.cluster.local:6379/0"
+      REDIS_URL        = "rediss://:${random_password.redis_auth.result}@${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0"
       SQS_QUEUE_URL    = module.sqs.queue_url
       SECRET_KEY       = random_password.secret_key.result
       USE_MULTI_AGENT  = "true"
@@ -60,6 +63,12 @@ module "secrets" {
       # identity is verified and SES production access is granted.
       SES_ENABLED    = "false"
       SES_FROM_EMAIL = ""
+      # Bedrock Knowledge Base (replaces pgvector log_embeddings pipeline).
+      BEDROCK_KB_ID        = aws_bedrockagent_knowledge_base.remediations.id
+      BEDROCK_KB_S3_BUCKET = aws_s3_bucket.kb_data.bucket
+      # Bedrock Guardrail — applied to all converse() calls.
+      BEDROCK_GUARDRAIL_ID      = aws_bedrock_guardrail.main.guardrail_id
+      BEDROCK_GUARDRAIL_VERSION = aws_bedrock_guardrail_version.main.version
       # Fill these manually in AWS Secrets Manager after first apply.
       # They are permanent (survive Bedrock account cleanup) so only need setting once.
       BEDROCK_CROSS_ACCOUNT_ROLE_ARN           = ""
