@@ -18,7 +18,7 @@
 #
 # Bedrock agents are NOT created here — they live in the Bedrock AWS account.
 # The worker assumes BEDROCK_CROSS_ACCOUNT_ROLE_ARN to call them cross-account;
-# agent IDs are filled manually in the agora/dev/worker secret.
+
 
 locals {
   name   = var.cluster_name
