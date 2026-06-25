@@ -133,7 +133,7 @@ resource "aws_bedrockagent_knowledge_base" "remediations" {
   }
 
   depends_on = [
-    aws_opensearchserverless_access_policy.kb,
+    time_sleep.kb_access_policy_propagation,
     aws_iam_role_policy.kb_s3,
     aws_iam_role_policy.kb_bedrock_embed,
   ]
@@ -225,6 +225,14 @@ resource "aws_opensearchserverless_collection" "kb" {
     aws_opensearchserverless_security_policy.kb_encryption,
     aws_opensearchserverless_security_policy.kb_network,
   ]
+}
+
+# Access policies can take up to 60s to propagate before Bedrock can create
+# the vector index inside the collection. Without this sleep the KB create
+# call hits a 403 immediately after the collection becomes ACTIVE.
+resource "time_sleep" "kb_access_policy_propagation" {
+  depends_on      = [aws_opensearchserverless_access_policy.kb]
+  create_duration = "60s"
 }
 
 # ── Bedrock Guardrail ──────────────────────────────────────────────────
