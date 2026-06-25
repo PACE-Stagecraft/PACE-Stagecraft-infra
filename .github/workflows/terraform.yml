@@ -50,10 +50,7 @@ jobs:
 
   plan-prod:
     name: Plan Prod
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod')
-    needs: plan-dev
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
     uses: aGora-Ops/agora-workflows/.github/workflows/terraform-plan.yml@main
     with:
       environment: prod
@@ -65,8 +62,6 @@ jobs:
 
   apply-dev:
     name: Apply Dev (manual)
-    # Gated: push to main runs plan only. Apply runs only when explicitly
-    # dispatched, so live dev infra is never changed without review.
     if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.environment == 'dev'
     needs: plan-dev
     uses: aGora-Ops/agora-workflows/.github/workflows/terraform-apply.yml@main
@@ -76,16 +71,14 @@ jobs:
       alert_email: ${{ vars.ALERT_EMAIL }}
     secrets:
       AWS_APPLY_ROLE_ARN: ${{ secrets.AWS_APPLY_ROLE_ARN }}
-      
-#test
+
   apply-prod:
     name: Apply Prod (requires approval)
-    if: |
-      github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.environment == 'prod'
-    needs: [plan-prod]
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.environment == 'prod'
+    needs: plan-prod
     uses: aGora-Ops/agora-workflows/.github/workflows/terraform-apply.yml@main
     with:
-      environment: prod   # "prod" GitHub Environment must have required reviewers
+      environment: prod
       working_directory: environments/prod
       alert_email: ${{ vars.ALERT_EMAIL }}
     secrets:

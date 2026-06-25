@@ -452,7 +452,7 @@ resource "kubernetes_manifest" "argocd_app_monitoring" {
         namespace = "monitoring"
       }
       syncPolicy = {
-        automated = { prune = true, selfHeal = true }
+        automated   = { prune = true, selfHeal = true }
         syncOptions = ["CreateNamespace=true", "ServerSideApply=true"]
       }
     }
