@@ -31,7 +31,7 @@ resource "aws_wafv2_web_acl" "cloudfront" {
 
     statement {
       byte_match_statement {
-        search_string         = "/webhooks/github"
+        search_string = "/webhooks/github"
         field_to_match {
           uri_path {}
         }
