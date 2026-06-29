@@ -403,7 +403,7 @@ resource "kubernetes_manifest" "karpenter_node_pool" {
           requirements = [
             { key = "kubernetes.io/arch", operator = "In", values = ["amd64"] },
             { key = "karpenter.sh/capacity-type", operator = "In", values = ["on-demand"] },
-            { key = "node.kubernetes.io/instance-type", operator = "In", values = ["t3.medium", "t3.large"] },
+            { key = "node.kubernetes.io/instance-type", operator = "In", values = ["m7i-flex.large", "c7i-flex.large"] },
           ]
         }
       }

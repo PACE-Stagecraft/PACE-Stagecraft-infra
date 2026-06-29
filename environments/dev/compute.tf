@@ -13,14 +13,14 @@ module "eks" {
 
   eks_managed_node_groups = {
     app = {
-      instance_types = ["t3.medium"]
+      instance_types = ["m7i-flex.large"]
       min_size       = 1
       max_size       = 4
       desired_size   = 1
       labels         = { role = "app" }
     }
     worker = {
-      instance_types = ["t3.medium"]
+      instance_types = ["m7i-flex.large"]
       min_size       = 0
       max_size       = 3
       desired_size   = 0
