@@ -39,8 +39,6 @@ module "secrets" {
       USE_MULTI_AGENT                          = "true"
       INTERNAL_API_KEY                         = random_password.internal_api_key.result
       FRONTEND_URL                             = var.frontend_url
-      SES_ENABLED                              = "false"
-      SES_FROM_EMAIL                           = ""
       BEDROCK_AGENT_ID_CLASSIFIER              = ""
       BEDROCK_AGENT_ID_ROOT_CAUSE              = ""
       BEDROCK_AGENT_ID_YAML_FIXER              = ""
