@@ -315,8 +315,9 @@ resource "kubernetes_manifest" "argocd_app" {
         helm = {
           valueFiles = ["values.yaml", "values.dev.yaml"]
           parameters = [
-            { name = "aws.mainAccountId", value = data.aws_caller_identity.current.account_id },
-            { name = "aws.clusterName", value = data.terraform_remote_state.infra.outputs.cluster_name },
+            { name = "aws.mainAccountId",  value = data.aws_caller_identity.current.account_id },
+            { name = "aws.clusterName",    value = data.terraform_remote_state.infra.outputs.cluster_name },
+            { name = "image.repository",   value = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-1.amazonaws.com/${each.key}" },
           ]
         }
       }
