@@ -13,35 +13,11 @@ module "api_role" {
   }
 
   role_policy_arns = {
-    bedrock     = aws_iam_policy.bedrock.arn
-    secrets     = aws_iam_policy.secrets_read.arn
-    sqs_publish = aws_iam_policy.sqs_publish.arn
+    bedrock = aws_iam_policy.bedrock.arn
+    secrets = aws_iam_policy.secrets_read.arn
   }
 }
 
-resource "aws_iam_policy" "sqs_publish" {
-  name = "${var.cluster_name}-sqs-publish"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
-      Resource = "arn:aws:sqs:${var.aws_region}:${var.account_id}:stagecraft-*"
-    }]
-  })
-}
-
-resource "aws_iam_policy" "sqs_consume" {
-  name = "${var.cluster_name}-sqs-consume"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:ChangeMessageVisibility", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"]
-      Resource = "arn:aws:sqs:${var.aws_region}:${var.account_id}:stagecraft-*"
-    }]
-  })
-}
 
 module "webhook_role" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
@@ -56,9 +32,6 @@ module "webhook_role" {
     }
   }
 
-  role_policy_arns = {
-    sqs_publish = aws_iam_policy.sqs_publish.arn
-  }
 }
 
 module "worker_role" {
@@ -75,8 +48,7 @@ module "worker_role" {
   }
 
   role_policy_arns = {
-    bedrock      = aws_iam_policy.bedrock.arn
-    sqs_consume  = aws_iam_policy.sqs_consume.arn
+    bedrock = aws_iam_policy.bedrock.arn
   }
 }
 

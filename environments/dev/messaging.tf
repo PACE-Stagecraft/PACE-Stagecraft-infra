@@ -25,6 +25,11 @@ resource "aws_iam_role_policy_attachment" "webhook_sqs_send" {
   policy_arn = aws_iam_policy.sqs_send.arn
 }
 
+resource "aws_iam_role_policy_attachment" "api_sqs_send" {
+  role       = module.iam.api_role_name
+  policy_arn = aws_iam_policy.sqs_send.arn
+}
+
 resource "aws_iam_policy" "sqs_consume" {
   name = "${local.name}-sqs-consume"
   policy = jsonencode({
