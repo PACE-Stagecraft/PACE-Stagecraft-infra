@@ -281,7 +281,7 @@ resource "kubernetes_secret" "argocd_repo_helm" {
 
   data = {
     type     = "git"
-    url      = "https://github.com/Stagecraft-Ops/stagecraft-helm.git"
+    url      = "https://github.com/PACE-Stagecraft/PACE-Stagecraft-helm.git"
     username = "x-access-token"
     password = var.argocd_repo_pat
   }
@@ -302,7 +302,7 @@ resource "kubernetes_manifest" "argocd_app" {
     spec = {
       project = "default"
       source = {
-        repoURL        = "https://github.com/Stagecraft-Ops/stagecraft-helm.git"
+        repoURL        = "https://github.com/PACE-Stagecraft/PACE-Stagecraft-helm.git"
         targetRevision = "main"
         path           = "charts/${each.key}"
         helm = {
@@ -411,6 +411,8 @@ resource "kubernetes_manifest" "karpenter_node_pool" {
 }
 
 resource "kubernetes_manifest" "argocd_app_monitoring" {
+  count = 0
+
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"
@@ -462,7 +464,7 @@ resource "kubernetes_manifest" "argocd_app_monitoring" {
 }
 
 resource "kubernetes_manifest" "grafana_httproute" {
-  count = var.domain_name != "" ? 1 : 0
+  count = 0
 
   manifest = {
     apiVersion = "gateway.networking.k8s.io/v1"

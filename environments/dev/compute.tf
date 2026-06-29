@@ -14,9 +14,9 @@ module "eks" {
   eks_managed_node_groups = {
     app = {
       instance_types = ["t3.medium"]
-      min_size       = 0
+      min_size       = 1
       max_size       = 4
-      desired_size   = 0
+      desired_size   = 1
       labels         = { role = "app" }
     }
     worker = {
